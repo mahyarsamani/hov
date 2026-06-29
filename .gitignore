@@ -1,0 +1,17 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.dump
+
+# Library output
+lib/
+
+# Binaries (unit tests)
+tests/unit/test_load/test_load
+
+# Binaries (kernels)
+tests/kernels/sum_indirect/sum_indirect
+tests/kernels/sum_indirect/sum_indirect_*
+tests/kernels/sum_indirect/asm_sum_indirect
+tests/kernels/sum_indirect/asm_sum_indirect_*
