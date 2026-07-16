@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/uaccess.h>
+#include "hov_ioctl.h"
 
 #define DEV_NAME "hov"
 #define DEV_MODE ((umode_t)0666) /* All users have RW access to this device */
@@ -61,9 +62,26 @@ static int hov_mmap(struct file *file, struct vm_area_struct *vma)
     return 0;
 }
 
+static long hov_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+    switch (cmd) {
+    case HOV_GET_MEM_SIZE:
+        if (copy_to_user((void __user *)arg, &hov_mem_size, sizeof(hov_mem_size)))
+            return -EFAULT;
+        return 0;
+    case HOV_GET_PHYS_BASE:
+        if (copy_to_user((void __user *)arg, &hov_phys_base, sizeof(hov_phys_base)))
+            return -EFAULT;
+        return 0;
+    default:
+        return -ENOTTY;
+    }
+}
+
 static const struct file_operations hov_fops = {
-    .owner = THIS_MODULE,
-    .mmap  = hov_mmap,
+    .owner          = THIS_MODULE,
+    .mmap           = hov_mmap,
+    .unlocked_ioctl = hov_ioctl,
 };
 
 static struct miscdevice hov_miscdev = {

@@ -3,6 +3,7 @@ GROUP  := gem5
 
 ifneq ($(KERNELRELEASE),)
 obj-m += $(DRIVER).o
+ccflags-y += -I$(src)/../include
 
 else
 PWD         ?= $(shell pwd)

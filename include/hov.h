@@ -69,10 +69,10 @@ hov_pair_t hov_create_pair(void *data, void *index, size_t data_elem_size, size_
 void hov_destroy_pair(hov_pair_t *pair);
 
 /* -----------------------------------------------------------------------
- * Memory Allocation
+ * Memory Allocation (two-phase: shared + arena)
+ * See hov_alloc.h for full API documentation.
  * -------------------------------------------------------------------- */
-void* hov_alloc_data(size_t size);
-void hov_free_data(void* ptr);
+#include "hov_alloc.h"
 
 static inline uint64_t hov_alias(const hov_pair_t *pair, size_t i) {
     return (uint64_t)pair->base_alias + i * pair->data_elem_size;

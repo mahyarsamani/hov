@@ -21,6 +21,7 @@ __hov_ldindx_x:
     .global __hov_ldindx_w
     .type __hov_ldindx_w, %function
 __hov_ldindx_w:
+    uxtw x4, w4
     mov x7, x1
     .inst 0xC8831046
     mov x0, x6
@@ -47,6 +48,7 @@ __hov_ldindw_x:
     .global __hov_ldindw_w
     .type __hov_ldindw_w, %function
 __hov_ldindw_w:
+    uxtw x4, w4
     mov x7, x1
     .inst 0x88831046
     mov w0, w6
@@ -73,6 +75,7 @@ __hov_ldindh_x:
     .global __hov_ldindh_w
     .type __hov_ldindh_w, %function
 __hov_ldindh_w:
+    uxtw x4, w4
     mov x7, x1
     .inst 0x48831046
     mov w0, w6
@@ -99,6 +102,7 @@ __hov_ldindb_x:
     .global __hov_ldindb_w
     .type __hov_ldindb_w, %function
 __hov_ldindb_w:
+    uxtw x4, w4
     mov x7, x1
     .inst 0x08831046
     mov w0, w6
@@ -124,6 +128,7 @@ __hov_stindx_x:
     .global __hov_stindx_w
     .type __hov_stindx_w, %function
 __hov_stindx_w:
+    uxtw x4, w4
     mov x6, x0
     mov x7, x1
     .inst 0xC8C31046
@@ -148,6 +153,7 @@ __hov_stindw_x:
     .global __hov_stindw_w
     .type __hov_stindw_w, %function
 __hov_stindw_w:
+    uxtw x4, w4
     mov x6, x0
     mov x7, x1
     .inst 0x88C31046
@@ -172,6 +178,7 @@ __hov_stindh_x:
     .global __hov_stindh_w
     .type __hov_stindh_w, %function
 __hov_stindh_w:
+    uxtw x4, w4
     mov x6, x0
     mov x7, x1
     .inst 0x48C31046
@@ -196,6 +203,7 @@ __hov_stindb_x:
     .global __hov_stindb_w
     .type __hov_stindb_w, %function
 __hov_stindb_w:
+    uxtw x4, w4
     mov x6, x0
     mov x7, x1
     .inst 0x08C31046
