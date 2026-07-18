@@ -8,17 +8,14 @@
  */
 #include "hov_pool.h"
 #include "hov_ioctl.h"
+#include "hov_config.h"
 
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
-
-#define HOV_LOG(fmt, ...) \
-    fprintf(stderr, "[hov_pool] " fmt "\n", ##__VA_ARGS__)
 
 /* -----------------------------------------------------------------------
  * Process-local state (private after fork, each process gets its own copy)
@@ -44,13 +41,13 @@ void hov_pool_init(void) {
     }
 
     /* --- Open /dev/hov --- */
-    HOV_LOG("init: opening /dev/hov...");
+    HOV_LOG("hov_pool", "init: opening /dev/hov...");
     int fd = open("/dev/hov", O_RDWR);
     if (fd < 0) {
         perror("hov_pool_init: open /dev/hov failed");
         abort();
     }
-    HOV_LOG("init: /dev/hov opened as fd=%d", fd);
+    HOV_LOG("hov_pool", "init: /dev/hov opened as fd=%d", fd);
 
     /* --- Query pool size from the driver via ioctl --- */
     unsigned long long ioctl_size = 0;
@@ -62,21 +59,21 @@ void hov_pool_init(void) {
     g_hov_mem_size = (size_t)ioctl_size;
 
     if (g_hov_mem_size == 0) {
-        HOV_LOG("init: ERROR: driver returned hov_mem_size = 0");
+        HOV_LOG("hov_pool", "init: ERROR: driver returned hov_mem_size = 0");
         close(fd);
         abort();
     }
     if (g_hov_mem_size <= HOV_HEADER_SIZE) {
-        HOV_LOG("init: ERROR: pool size %zu <= header size %u",
+        HOV_LOG("hov_pool", "init: ERROR: pool size %zu <= header size %u",
                 g_hov_mem_size, HOV_HEADER_SIZE);
         close(fd);
         abort();
     }
-    HOV_LOG("init: hov_mem_size = %zu bytes (%.2f GiB)",
+    HOV_LOG("hov_pool", "init: hov_mem_size = %zu bytes (%.2f GiB)",
             g_hov_mem_size, (double)g_hov_mem_size / (1024.0 * 1024 * 1024));
 
     /* --- mmap the full pool --- */
-    HOV_LOG("init: calling mmap(NULL, %zu, PROT_READ|PROT_WRITE, "
+    HOV_LOG("hov_pool", "init: calling mmap(NULL, %zu, PROT_READ|PROT_WRITE, "
             "MAP_SHARED, fd=%d, 0)...", g_hov_mem_size, fd);
     void *pool = mmap(NULL, g_hov_mem_size, PROT_READ | PROT_WRITE,
                       MAP_SHARED, fd, 0);
@@ -92,15 +89,12 @@ void hov_pool_init(void) {
     __atomic_compare_exchange_n(bump, &expected, (size_t)HOV_HEADER_SIZE,
                                 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 
-    size_t *chunk = hov_pool_hdr_sizet(pool, HOV_HDR_CHUNK_BUMP);
-    expected = 0;
-    /* chunk_bump is not initialized until hov_init_arenas(), leave at 0 */
-    (void)chunk;
+    /* chunk_bump is initialized by hov_init_arenas() if arenas are used */
 
     /* Publish the pool pointer (makes the fast-path check above succeed) */
     g_hov_mem_pool = pool;
 
-    HOV_LOG("init: SUCCESS. pool=%p size=%zu (%.2f GiB) "
+    HOV_LOG("hov_pool", "init: SUCCESS. pool=%p size=%zu (%.2f GiB) "
             "header=%u usable=%zu shared_bump=%zu",
             pool, g_hov_mem_size,
             (double)g_hov_mem_size / (1024.0 * 1024 * 1024),

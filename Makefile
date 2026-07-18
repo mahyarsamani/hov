@@ -21,6 +21,11 @@ endif
 CFLAGS  := -Wall -Wextra -O3 -fPIC -Iinclude $(SYSROOT_CFLAGS)
 LDFLAGS := -shared $(SYSROOT_LDFLAGS)
 
+# ==== Debug logging (build with HOV_DEBUG=1 to enable) ====
+ifdef HOV_DEBUG
+  CFLAGS += -DHOV_DEBUG
+endif
+
 # ==== Annotate ====
 ANNOTATE_DIR ?= $(CURDIR)/../annotate
 export ANNOTATE_DIR

@@ -15,14 +15,11 @@
  */
 #include "hov_alloc.h"
 #include "hov_pool.h"
+#include "hov_config.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-
-#define HOV_LOG(fmt, ...) \
-    fprintf(stderr, "[hov_alloc] " fmt "\n", ##__VA_ARGS__)
 
 /* -----------------------------------------------------------------------
  * Default arena chunk size: 128 MiB (overridable via env var)
@@ -82,7 +79,7 @@ static hov_arena_chunk_t *grab_new_chunk(void) {
 
     /* Guard: check we haven't exceeded the pool */
     if (offset + alloc_size > hov_pool_size()) {
-        HOV_LOG("ERROR: arena chunk allocation exceeds pool. "
+        HOV_LOG("hov_alloc", "ERROR: arena chunk allocation exceeds pool. "
                 "offset=%zu chunk_size=%zu pool_size=%zu",
                 offset, alloc_size, hov_pool_size());
         abort();
@@ -96,7 +93,7 @@ static hov_arena_chunk_t *grab_new_chunk(void) {
     chunk->chunk_size = alloc_size - HOV_CHUNK_HDR_SIZE;
     chunk->used = 0;
 
-    HOV_LOG("grab_chunk: new chunk at pool offset=%zu, "
+    HOV_LOG("hov_alloc", "grab_chunk: new chunk at pool offset=%zu, "
             "usable=%zu, chunk_bump now=%zu / %zu",
             offset, chunk->chunk_size,
             __atomic_load_n(chunk_bump(), __ATOMIC_SEQ_CST),
@@ -124,7 +121,7 @@ void hov_init_arenas(void) {
         size_t val = strtoull(env, NULL, 10);
         if (val >= HOV_CHUNK_HDR_SIZE + HOV_PAGE_SIZE) {
             g_chunk_alloc_size = HOV_ALIGN_UP(val, HOV_PAGE_SIZE);
-            HOV_LOG("init_arenas: chunk size overridden to %zu from env",
+            HOV_LOG("hov_alloc", "init_arenas: chunk size overridden to %zu from env",
                     g_chunk_alloc_size);
         }
     }
@@ -141,7 +138,7 @@ void hov_init_arenas(void) {
     __atomic_compare_exchange_n(chunk_bump(), &expected, aligned_start,
                                 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 
-    HOV_LOG("init_arenas: shared region frozen at %zu, "
+    HOV_LOG("hov_alloc", "init_arenas: shared region frozen at %zu, "
             "chunk_bump starts at %zu, pool_size=%zu",
             shared_end,
             __atomic_load_n(chunk_bump(), __ATOMIC_SEQ_CST),
@@ -153,7 +150,7 @@ void hov_init_arenas(void) {
     arena_cur  = first;
     g_arenas_active = 1;
 
-    HOV_LOG("init_arenas: arena ready for this process. "
+    HOV_LOG("hov_alloc", "init_arenas: arena ready for this process. "
             "first chunk at %p, usable=%zu",
             (void *)first, first->chunk_size);
 }
@@ -164,7 +161,7 @@ void hov_init_arenas(void) {
 static void *alloc_from_shared(size_t size) {
     /* Check frozen flag */
     if (__atomic_load_n(arena_frozen_flag(), __ATOMIC_SEQ_CST)) {
-        HOV_LOG("ERROR: shared allocation attempted after arenas frozen. "
+        HOV_LOG("hov_alloc", "ERROR: shared allocation attempted after arenas frozen. "
                 "Call hov_init_arenas() only after all persistent allocs.");
         abort();
     }
@@ -174,7 +171,7 @@ static void *alloc_from_shared(size_t size) {
                                        __ATOMIC_SEQ_CST);
 
     if (offset + aligned > hov_pool_size()) {
-        HOV_LOG("ERROR: shared region OOM. requested=%zu (aligned=%zu) "
+        HOV_LOG("hov_alloc", "ERROR: shared region OOM. requested=%zu (aligned=%zu) "
                 "offset=%zu pool_size=%zu",
                 size, aligned, offset, hov_pool_size());
         abort();
@@ -182,7 +179,7 @@ static void *alloc_from_shared(size_t size) {
 
     void *ret = (char *)hov_pool_raw() + offset;
 
-    HOV_LOG("shared_alloc: %zu bytes (aligned=%zu) at %p "
+    HOV_LOG("hov_alloc", "shared_alloc: %zu bytes (aligned=%zu) at %p "
             "(pool offset=%zu, bump=%zu / %zu)",
             size, aligned, ret, offset,
             __atomic_load_n(shared_bump(), __ATOMIC_SEQ_CST),
@@ -202,7 +199,7 @@ static void *alloc_from_arena(size_t size) {
         void *ret = (char *)chunk_usable_base(arena_cur) + arena_cur->used;
         arena_cur->used += aligned;
 
-        HOV_LOG("arena_alloc: %zu bytes (aligned=%zu) at %p "
+        HOV_LOG("hov_alloc", "arena_alloc: %zu bytes (aligned=%zu) at %p "
                 "(chunk offset=%zu, chunk used=%zu / %zu)",
                 size, aligned, ret,
                 arena_cur->used - aligned,
@@ -211,7 +208,7 @@ static void *alloc_from_arena(size_t size) {
     }
 
     /* Current chunk full — grab a new one */
-    HOV_LOG("arena_alloc: current chunk exhausted "
+    HOV_LOG("hov_alloc", "arena_alloc: current chunk exhausted "
             "(need %zu, remaining=%zu). Grabbing new chunk...",
             aligned,
             arena_cur ? arena_cur->chunk_size - arena_cur->used : 0);
@@ -225,7 +222,7 @@ static void *alloc_from_arena(size_t size) {
         if (cur_end == (char *)new_chunk) {
             /* Adjacent — extend current chunk instead of adding a node */
             arena_cur->chunk_size += g_chunk_alloc_size;
-            HOV_LOG("arena_alloc: coalesced adjacent chunk, "
+            HOV_LOG("hov_alloc", "arena_alloc: coalesced adjacent chunk, "
                     "new chunk_size=%zu", arena_cur->chunk_size);
 
             /* Now try allocation again in the extended chunk */
@@ -240,7 +237,7 @@ static void *alloc_from_arena(size_t size) {
 
     /* Not adjacent or still doesn't fit — add as new node */
     if (aligned > new_chunk->chunk_size) {
-        HOV_LOG("ERROR: single allocation %zu exceeds chunk usable size %zu",
+        HOV_LOG("hov_alloc", "ERROR: single allocation %zu exceeds chunk usable size %zu",
                 aligned, new_chunk->chunk_size);
         abort();
     }
@@ -253,7 +250,7 @@ static void *alloc_from_arena(size_t size) {
     void *ret = (char *)chunk_usable_base(arena_cur) + arena_cur->used;
     arena_cur->used += aligned;
 
-    HOV_LOG("arena_alloc: %zu bytes (aligned=%zu) at %p "
+    HOV_LOG("hov_alloc", "arena_alloc: %zu bytes (aligned=%zu) at %p "
             "(new chunk, used=%zu / %zu)",
             size, aligned, ret,
             arena_cur->used, arena_cur->chunk_size);
@@ -268,7 +265,7 @@ void *hov_alloc_data(size_t size) {
     if (g_hov_mem_pool == NULL) {
         pthread_mutex_lock(&g_alloc_mutex);
         if (g_hov_mem_pool == NULL) {
-            HOV_LOG("alloc_data: pool not initialized, calling hov_pool_init()...");
+            HOV_LOG("hov_alloc", "alloc_data: pool not initialized, calling hov_pool_init()...");
             hov_pool_init();
         }
         pthread_mutex_unlock(&g_alloc_mutex);
@@ -286,7 +283,7 @@ void *hov_alloc_data(size_t size) {
  * -------------------------------------------------------------------- */
 void hov_free_data(void *ptr) {
     if (!g_arenas_active) {
-        HOV_LOG("free_data: ignoring free for %p (shared region, never freed)",
+        HOV_LOG("hov_alloc", "free_data: ignoring free for %p (shared region, never freed)",
                 ptr);
         return;
     }
@@ -296,7 +293,6 @@ void hov_free_data(void *ptr) {
     /* v1: simple approach — check if ptr is in current chunk and reset.
      * For now, we log but don't reclaim. Full LIFO reset will be done
      * when the entire arena is released (e.g., in hov_context::destroy). */
-    HOV_LOG("free_data: marking %p for deallocation (arena, v1: no-op reclaim)",
-            ptr);
+    HOV_LOG("hov_alloc", "free_data: marking %p for deallocation (arena, v1: no-op reclaim)", ptr);
     (void)ptr;
 }
