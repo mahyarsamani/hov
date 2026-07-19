@@ -19,9 +19,10 @@ extern "C" {
 void hov_init_shared_pool(void);
 
 /* Phase 2: freeze the shared region and set up per-rank arenas.
- * Call once, after all persistent allocations are complete.
+ * Call once (from rank 0), after all persistent allocations are complete.
+ * min_chunk_size: minimum chunk size in bytes (0 = default 128 MiB).
  * After this, hov_alloc_data() routes to the per-rank arena. */
-void hov_init_arenas(void);
+void hov_init_arenas(size_t min_chunk_size);
 
 /* Allocate physically contiguous memory.
  * Before hov_init_arenas(): allocates from the shared region (cross-process atomic).
