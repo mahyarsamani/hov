@@ -46,7 +46,7 @@ static int hov_mmap(struct file *file, struct vm_area_struct *vma)
 
     /* Prevent memory caching for unmanaged physical memory.
      * Often pgprot_noncached() is used for strictly MMIO registers,
-     * but since this is actual RAM, we might want it cached if possible. 
+     * but since this is actual RAM, we might want it cached if possible.
      * We'll stick with default VMA protections unless this causes issues.
      */
     /* vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot); */
@@ -117,5 +117,5 @@ module_init(hov_init);
 module_exit(hov_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Antigravity");
+MODULE_AUTHOR("Gideon Vance");
 MODULE_DESCRIPTION("HOV Memory Allocator Bridge Driver");
